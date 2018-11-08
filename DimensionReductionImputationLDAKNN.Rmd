@@ -1,0 +1,285 @@
+
+Initialising the required libraries
+
+```{r}
+# Library Initialisation
+library(DMwR)
+library(data.table)
+library(Information)
+library(gridExtra)
+library(class)
+library(caret)
+library(MASS)
+
+```
+
+Reading the data set
+
+```{r}
+# Reading the dataset
+application_test <- read.csv("C:/University of Chicago/Data Mining/Project/application_test.csv", header=TRUE,stringsAsFactors=FALSE)
+application_train <- read.csv("C:/University of Chicago/Data Mining/Project/application_train.csv", header=TRUE,stringsAsFactors=FALSE)
+
+```
+
+
+Imputing the missing/NA values
+
+```{r}
+# Categorizing the OCCUPATION_TYPE column in application_train
+application_train$OCCUPATION_TYPE <- as.integer(as.numeric(as.factor(application_train$OCCUPATION_TYPE)))
+# Categorizing the ORGANIZATION_TYPE COLUMN in application_train
+application_train$ORGANIZATION_TYPE <- as.integer(as.numeric(as.factor(application_train$ORGANIZATION_TYPE)))
+# Categorizing the NAME_CONTRACT_TYPE column in application_train
+application_train$NAME_CONTRACT_TYPE <- as.integer(as.numeric(as.factor(application_train$NAME_CONTRACT_TYPE)))
+# Categorizing the CODE_GENDER column in application_train
+application_train$CODE_GENDER <- as.integer(as.numeric(as.factor(application_train$CODE_GENDER)))
+# Categorizing the EMERGENCYSTATE_MODE column in application_train
+application_train$EMERGENCYSTATE_MODE <- as.integer(as.numeric(as.factor(application_train$EMERGENCYSTATE_MODE)))
+# Categorizing the EMERGENCYSTATE_MODE column in application_train
+application_train$EMERGENCYSTATE_MODE <- as.integer(as.numeric(as.factor(application_train$EMERGENCYSTATE_MODE)))
+# Categorizing the FLAG_OWN_CAR  column in application_train
+application_train$FLAG_OWN_CAR  <- as.integer(as.numeric(as.factor(application_train$FLAG_OWN_CAR)))
+# Categorizing the FLAG_OWN_REALTY  column in application_train
+application_train$FLAG_OWN_REALTY  <- as.integer(as.numeric(as.factor(application_train$FLAG_OWN_REALTY)))
+# Categorizing the NAME_TYPE_SUITE  column in application_train
+application_train$NAME_TYPE_SUITE  <- as.integer(as.numeric(as.factor(application_train$NAME_TYPE_SUITE)))
+# Categorizing the NAME_INCOME_TYPE  column in application_train
+application_train$NAME_INCOME_TYPE  <- as.integer(as.numeric(as.factor(application_train$NAME_INCOME_TYPE)))
+# Categorizing the NAME_EDUCATION_TYPE    column in application_train
+application_train$NAME_EDUCATION_TYPE   <- as.integer(as.numeric(as.factor(application_train$NAME_EDUCATION_TYPE)))
+# Categorizing the NAME_FAMILY_STATUS    column in application_train
+application_train$NAME_FAMILY_STATUS   <- as.integer(as.numeric(as.factor(application_train$NAME_FAMILY_STATUS)))
+# Categorizing the NAME_HOUSING_TYPE    column in application_train
+application_train$NAME_HOUSING_TYPE   <- as.integer(as.numeric(as.factor(application_train$NAME_HOUSING_TYPE)))
+# Categorizing the WEEKDAY_APPR_PROCESS_START    column in application_train
+application_train$WEEKDAY_APPR_PROCESS_START   <- as.integer(as.numeric(as.factor(application_train$WEEKDAY_APPR_PROCESS_START)))
+# Converting the NULL Values to NA
+application_train$HOUSETYPE_MODE <- ifelse(application_train$HOUSETYPE_MODE=="","NA",application_train$HOUSETYPE_MODE)
+# Converting the NULL Values to NA
+application_train$WALLSMATERIAL_MODE<- ifelse(application_train$WALLSMATERIAL_MODE=="","NA",application_train$WALLSMATERIAL_MODE)
+# Converting the NULL Values to NA
+application_train$EMERGENCYSTATE_MODE<- ifelse(application_train$EMERGENCYSTATE_MODE=="","NA",application_train$EMERGENCYSTATE_MODE)
+# Subsetting the Numeric class columns
+subset_colclasses <- function(DF, colclasses="numeric") {
+  DF[,sapply(DF, function(vec, test) class(vec) %in% test, test=colclasses)]
+}
+# Subsetting the data into numeric, integer, character
+subset_numeric <- subset_colclasses(application_train,colclasses="numeric")
+subset_integer <- subset_colclasses(application_train,colclasses="integer")
+subset_character <- subset_colclasses(application_train,colclasses="character")
+f=function(x){
+   x<-as.numeric(as.character(x)) #first convert each column into numeric if it is from factor
+   x[is.na(x)] =mean(x, na.rm=TRUE) #convert the item with NA to mean value from the column
+   x #display the column
+}
+ss=data.frame(apply(subset_numeric,2,f))
+f_median=function(x){
+   x<-as.integer(as.character(x)) #first convert each column into numeric if it is from factor
+   x[is.na(x)] =median(x, na.rm=TRUE) #convert the item with NA to median value from the column
+   x #display the column
+}
+ss_int=data.frame(apply(subset_integer,2,f))
+uniqueX <- unique(subset_character$FONDKAPREMONT_MODE)
+uniqueX <- uniqueX[uniqueX!="NA"]
+subset_character$FONDKAPREMONT_MODE[subset_character$FONDKAPREMONT_MODE=="NA"] = sample(uniqueX,1) #convert the item with NA to median value from the column
+uniqueY <- unique(subset_character$HOUSETYPE_MODE)
+uniqueY <- uniqueY[uniqueY!="NA"]
+subset_character$HOUSETYPE_MODE[subset_character$HOUSETYPE_MODE=="NA"] = sample(uniqueY,1) #convert the item with NA to median value from the column
+uniqueZ <- unique(subset_character$WALLSMATERIAL_MODE)
+uniqueZ <- uniqueZ[uniqueZ!="NA"]
+subset_character$WALLSMATERIAL_MODE[subset_character$WALLSMATERIAL_MODE=="NA"] = sample(uniqueZ,1) #convert the item with NA to median value from the column
+subset_master_character <- apply(subset_character,2,function(x)as.integer(as.numeric(as.factor(x))))
+subset_master_character <- data.frame(subset_master_character)
+
+```
+
+Creating the cleaned Master data file
+
+```{r}
+# Master Data
+imputed_master <- cbind(ss,ss_int,subset_master_character)
+#write.csv(imputed_master,"C:/University of Chicago/Data Mining/Project/TrainDataCleaned.csv")
+
+```
+
+Scaling the cleaned data and applying PCA on it
+
+```{r}
+#TrainDataCleaned = read.csv("C:/University of Chicago/Data Mining/Project/TrainDataCleaned.csv")
+TrainDataCleaned = imputed_master
+TrainDataCleaned =TrainDataCleaned[,-1]
+#str(TrainDataCleaned)
+#names(TrainDataCleaned)
+Target= TrainDataCleaned[,67]
+TrainDataCleaned = TrainDataCleaned[,-c(66,67)]
+#str(TrainDataCleaned)
+TrainDataCleaned <- scale(TrainDataCleaned,center=apply(TrainDataCleaned,2,mean),scale=apply(TrainDataCleaned,2,sd))
+
+
+Project.Data.PCA <- princomp(TrainDataCleaned)
+
+
+
+barplot(Project.Data.PCA$sdev^2/sum(Project.Data.PCA$sdev^2), ylim=c(0,1))
+
+
+cumsum(Project.Data.PCA$sdev^2/sum(Project.Data.PCA$sdev^2))
+plot(cumsum(Project.Data.PCA$sdev^2/sum(Project.Data.PCA$sdev^2)))
+
+```
+
+
+Selecting the first 65 components to get about 90% of the total variance, and setting the target as the first variable
+
+```{r}
+TrainDataReducedPCA <- Project.Data.PCA$scores[,1:65] 
+
+TrainDataReducedPCA <- cbind.data.frame(Target,TrainDataReducedPCA)
+#str(TrainDataReducedPCA)
+
+```
+
+Splitting this data into train and test and converting the Target into factors
+
+```{r}
+set.seed(3)
+n=round(length(TrainDataReducedPCA[,1])*0.7)
+totaln=length(TrainDataReducedPCA[,1])
+
+totaln
+n
+
+all =1:n
+train = sample(1:totaln,size =n,replace = FALSE)
+train =sort(train)
+hold= all[-train]
+
+
+TrainPCA <- as.data.frame(TrainDataReducedPCA[train,])
+TestPCA <- as.data.frame(TrainDataReducedPCA[hold,])
+#str(TrainPCA)
+
+TrainPCA$Target =factor(TrainPCA$Target)
+TestPCA$Target <- factor(TestPCA$Target)
+
+```
+
+
+Applying SMOTE on the train and test samples to correct the imbalance in the response
+
+```{r}
+TrainDataSmotePCA <- SMOTE(Target~., data=TrainPCA,perc.over = 200,k=5,learner=NULL) 
+TestDataSmotePCA <-  SMOTE(Target~., data=TestPCA,perc.over = 200,k=5,learner=NULL)
+
+#write.csv(TrainDataSmotePCA,"C:/University of Chicago/Data Mining/Project/TrainDataSmotePCA.csv")
+#write.csv(TestDataSmotePCA,"C:/University of Chicago/Data Mining/Project/TestDataSmotePCA.csv")
+
+```
+
+
+Applying LDA to the train and test post SMOTE
+
+```{r}
+ldatrain <- lda(Target~., data=TrainDataSmotePCA)
+ldatrainclass<- predict(ldatrain)$class
+
+confusionMatrix(ldatrainclass,TrainDataSmotePCA$Target)
+
+
+ldatestclass <- predict(ldatrain, newdata=TestDataSmotePCA[,-1])$class
+confusionMatrix(ldatestclass,TestDataSmotePCA$Target)
+
+
+
+```
+
+
+Analysing the group means of the two LDA classes
+
+```{r}
+ldatrainGroupMeans <- as.data.frame(t(ldatrain$means))
+
+
+names(ldatrainGroupMeans)<- c("Group0","Group1")
+
+ldatrainGroupMeansby0 <- ldatrainGroupMeans[order(-ldatrainGroupMeans[,1]),] 
+ldatrainGroupMeansby1 <- ldatrainGroupMeans[order(-ldatrainGroupMeans[,2]),] 
+
+head(ldatrainGroupMeansby0,10)
+head(ldatrainGroupMeansby1,10)
+
+```
+
+
+```{r}
+#Significant variables for predicting 0
+#Project.Data.PCA$loadings
+PCALoadings <- as.data.frame(Project.Data.PCA$loadings[,119])
+
+#str(Project.Data.PCA$loadings)
+library(data.table)
+library(spatial.tools)
+setDT(PCALoadings, keep.rownames = TRUE)[]
+
+#biplot(Project.Data.PCA$scores[1:10,c(1,4)],Project.Data.PCA$loadings[,c(1,4)])
+
+```
+
+```{r}
+apply(Project.Data.PCA$loadings[,c(3,4,25,1,20)],2, function(x) PCALoadings[which.max(x),1])
+
+#apply(Project.Data.PCA$loadings[,c(8,13,16)],2, function(x) PCALoadings[which.max(x),1])
+
+
+```
+
+```{r}
+apply(Project.Data.PCA$loadings[,c(2,19,15,14,24)],2, function(x) PCALoadings[which.max(x),1])
+
+#apply(Project.Data.PCA$loadings[,c(24,31,46)],2, function(x) PCALoadings[which.max(x),1])
+
+
+```
+
+Applying KNN on the Train and Test
+
+```{r}
+#str(TrainDataSmotePCA)
+#str(TestDataSmotePCA)
+knnoutput2 <- list()
+for(i in 1:10) {
+  knnoutput2[[i]] =knn(TrainDataSmotePCA[,-1], TestDataSmotePCA[,-1],TrainDataSmotePCA[,1], k=i)
+}
+
+
+```
+
+Extracting the accuracy, kappa, sensitivity and specificity from the knn results
+
+```{r}
+sensitivity =c()
+specificity=c()
+accuracy =c()
+kappa =c()
+for(i in 1:10) {
+  sensitivity[i]=confusionMatrix(knnoutput2[[i]],TestDataSmotePCA$Target)$byClass[[1]]
+  specificity[i]=confusionMatrix(knnoutput2[[i]],TestDataSmotePCA$Target)$byClass[[2]]
+  accuracy[i]=confusionMatrix(knnoutput2[[i]],TestDataSmotePCA$Target)$overall[[1]]
+  kappa[i]=confusionMatrix(knnoutput2[[i]],TestDataSmotePCA$Target)$overall[[2]]
+}
+
+```
+
+Plotting the accuracy vs. number of neighbours for KNN
+
+```{r}
+accuracy
+sensitivity
+specificity
+kappa
+
+plot(1:10,accuracy, type="l", xlab="number of neighbours", ylab="Accuracy", main="KNN Accuracy vs. number of neighbours")
+
+```
+
